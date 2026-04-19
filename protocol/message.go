@@ -1,6 +1,9 @@
 package protocol
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"fmt"
+)
 
 type MsgType int
 
@@ -29,6 +32,34 @@ func EncodeMessage(m Message) []byte {
 	buf = appendInt64(buf, m.TTL)
 	buf = appendUint32(buf, uint32(m.Type))
 	return appendBytes(buf, m.Payload)
+}
+
+func DecodeMessage(payload []byte) (Message, error) {
+	const minMessageLen = 16 + 8 + 8 + 4 + 4
+	if len(payload) < minMessageLen {
+		return Message{}, fmt.Errorf("invalid message length: %d", len(payload))
+	}
+
+	var msg Message
+	copy(msg.MessageID[:], payload[:16])
+	msg.Timestamp = int64(binary.BigEndian.Uint64(payload[16:24]))
+	msg.TTL = int64(binary.BigEndian.Uint64(payload[24:32]))
+
+	typ := decodeUint32(payload[32:36])
+	if typ > uint32(ERROR) {
+		return Message{}, fmt.Errorf("invalid message type: %d", typ)
+	}
+	msg.Type = MsgType(typ)
+
+	decodedPayload, offset, err := decodeLengthPrefixedBytes(payload, 36)
+	if err != nil {
+		return Message{}, err
+	}
+	if offset != len(payload) {
+		return Message{}, fmt.Errorf("invalid message length: %d", len(payload))
+	}
+	msg.Payload = decodedPayload
+	return msg, nil
 }
 
 func encodedMessageLen(m Message) int {

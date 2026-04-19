@@ -15,7 +15,8 @@ var ErrUnknownPeer = errors.New("unknown peer")
 type Node struct {
 	ID PeerID
 
-	now func() int64
+	now    func() int64
+	sender func(PeerID, protocol.Message) error
 
 	txStore          map[web4crypto.Hash]*TxRecord
 	valueStore       map[web4crypto.Hash]web4crypto.Value
@@ -50,6 +51,17 @@ func NewNode(id PeerID) *Node {
 
 func (n *Node) AddPeer(peer *Node) {
 	n.peers[peer.ID] = peer
+}
+
+func (n *Node) AddPeerID(peerID PeerID) {
+	if _, ok := n.peers[peerID]; ok {
+		return
+	}
+	n.peers[peerID] = nil
+}
+
+func (n *Node) SetSender(sender func(PeerID, protocol.Message) error) {
+	n.sender = sender
 }
 
 func (n *Node) SetNowFunc(now func() int64) {
@@ -150,11 +162,14 @@ func (n *Node) AcceptLocalTransfer(tx web4crypto.Transfer) error {
 }
 
 func (n *Node) send(to PeerID, msg protocol.Message) error {
+	n.sent = append(n.sent, SentMessage{To: to, Message: msg})
+	if n.sender != nil {
+		return n.sender(to, msg)
+	}
 	peer, ok := n.peers[to]
-	if !ok {
+	if !ok || peer == nil {
 		return ErrUnknownPeer
 	}
-	n.sent = append(n.sent, SentMessage{To: to, Message: msg})
 	return peer.OnMessage(n.ID, msg)
 }
 
