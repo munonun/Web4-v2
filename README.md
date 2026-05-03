@@ -1,3 +1,12 @@
+# Legacy Reference
+
+## Next Version
+
+Web4 v3 is here:
+
+[👉 Web4 v3 Repository](https://github.com/munonun/Web4-v3)
+
+
 # Web4 — Local Selection Value Network
 
 Web4 is a distributed value-transfer protocol where nodes validate locally, preserve conflicts, and select one lineage per input without global consensus.
